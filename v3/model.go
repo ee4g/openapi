@@ -150,21 +150,29 @@ type Encoding struct {
 // Schema defines a data type or a union of data types.
 type Schema struct {
 	Type          Type           `json:"type"`
+	Minimum       int64          `json:"minimum,omitempty"`       // Minimum is inclusive
+	Maximum       int64          `json:"maximum,omitempty"`       // Maximum is inclusive
+	MaxLength     int            `json:"maxLength,omitempty"`     // MaxLength in bytes
+	MinLength     int            `json:"minLength,omitempty"`     // MinLength in bytes
+	MaxItems      int            `json:"maxItems,omitempty"`      // MaxItems of an array
+	MinItems      int            `json:"minItems,omitempty"`      // MinItems for an array
 	Nullable      bool           `json:"nullable,omitempty"`      // Nullable allows a null value
+	Pattern       string         `json:"pattern,omitempty"`       // Pattern should be a valid regex
 	Discriminator *Discriminator `json:"discriminator,omitempty"` // Discriminator allows union types
 	ReadOnly      bool           `json:"readOnly,omitempty"`      // ReadOnly declares a read only property
 	WriteOnly     bool           `json:"writeOnly,omitempty"`     // WriteOnly declares a write only property
 	Deprecated    bool           `json:"deprecated,omitempty"`    // Deprecated, if true should not be used
 }
 
-// Type of a schema
+// Type of a schema, see https://swagger.io/docs/specification/data-models/data-types/
 type Type string
 
 const (
-	Integer Type = "integer"
-	Number  Type = "number"
 	String  Type = "string"
+	Number  Type = "number"
+	Integer Type = "integer"
 	Boolean Type = "bool"
+	Array   Type = "array"
 	Object  Type = "object"
 )
 
