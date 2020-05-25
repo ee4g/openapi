@@ -16,7 +16,10 @@
 
 package v3
 
-import "net/url"
+import (
+	"encoding/json"
+	"net/url"
+)
 
 type URL struct {
 	*url.URL
@@ -38,17 +41,31 @@ const (
 // A Document represents the root of an OpenAPI 3.x.x specification (OAS). The file name for the document should
 // be openapi.json. See also https://github.com/OAI/OpenAPI-Specification/blob/master/versions/3.0.2.md#openapi-object.
 type Document struct {
-	OpenAPI string              `json:"openapi"`           // OpenAPI version, e.g. 3.0.1 which is required
-	Info    Info                `json:"info"`              // Info contains required metadata about the defined API
-	Servers []Server            `json:"servers,omitempty"` // Servers contains the target servers or / if empty
-	Paths   map[string]PathItem `json:"paths"`             // Paths contains each endpoint specification
+	OpenAPI    string              `json:"openapi"`           // OpenAPI version, e.g. 3.0.1 which is required
+	Info       Info                `json:"info"`              // Info contains required metadata about the defined API
+	Servers    []Server            `json:"servers,omitempty"` // Servers contains the target servers or / if empty
+	Paths      map[string]PathItem `json:"paths"`             // Paths contains each endpoint specification
+	Components *Components         `json:"components,omitempty"`
+}
+
+// NewDocument returns a 3.0.n document
+func NewDocument() Document {
+	return Document{Paths: map[string]PathItem{}, OpenAPI: "3.0.1"}
+}
+
+func (d Document) String() string {
+	b, err := json.Marshal(d)
+	if err != nil {
+		panic(err)
+	}
+	return string(b)
 }
 
 // Info describes the API and may be required by some client. It is mainly presented for convenience.
 type Info struct {
 	Title          string  `json:"title"`                    // Title of the specified API and is required
 	Description    string  `json:"description,omitempty"`    // Description is a short Markdown enriched text
-	TermsOfService URL     `json:"termsOfService,omitempty"` // TermsOfService is an URL or nil
+	TermsOfService *URL    `json:"termsOfService,omitempty"` // TermsOfService is an URL or nil
 	Contact        Contact `json:"license,omitempty"`        // Contact to the API maintainer
 	License        License `json:"license,omitempty"`        // License information for the API
 	Version        string  `json:"version"`                  // Version is for the specified API and is required
@@ -57,7 +74,7 @@ type Info struct {
 // Contact contains just some information about the maintainer of the API.
 type Contact struct {
 	Name  string `json:"name,omitempty"`  // The name of the contact person
-	Url   URL    `json:"url,omitempty"`   // URL to e.g. a vcard or a persons page or profile
+	Url   *URL   `json:"url,omitempty"`   // URL to e.g. a vcard or a persons page or profile
 	Email string `json:"email,omitempty"` // Email is the actual mail address
 
 }
@@ -70,7 +87,7 @@ type License struct {
 
 // Server represents a service endpoint behind a specific URL
 type Server struct {
-	Url         URL                       `json:"url"`                   // Url is the required target host
+	Url         string                    `json:"url"`                   // Url is the required target host
 	Description string                    `json:"description,omitempty"` // Description is the optional Markdown text
 	Variables   map[string]ServerVariable `json:"variables,omitempty"`   // Variables define substitutions for url
 }
@@ -84,9 +101,7 @@ type ServerVariable struct {
 
 // A PathItem describes the available operations for a specific path.
 type PathItem struct {
-	Summary     string    `json:"summary"`       // Summary is an optional short text
-	Description string    `json:"description"`   // Description is an optional Markdown text
-	Get         Operation `json:"get,omitempty"` // Get defines‚ the get Verb
+	Get Operation `json:"get,omitempty"` // Get defines‚ the get Verb
 
 }
 
@@ -114,9 +129,9 @@ type Parameter struct {
 
 // Response specifies a single response from an API endpoint
 type Response struct {
-	Description string            `json:"description"`       // Description is required, for a change
-	Headers     map[string]Header `json:"headers,omitempty"` // Headers may contain additional information
-	Content     *MediaType        `json:"content,omitempty"` // Content describes potential response types
+	Description string               `json:"description"`       // Description is required, for a change
+	Headers     map[string]Header    `json:"headers,omitempty"` // Headers may contain additional information
+	Content     map[string]MediaType `json:"content,omitempty"` // Content describes potential response types
 
 }
 
@@ -134,8 +149,8 @@ type Header struct {
 
 // MediaType provides a schema and an example for it.
 type MediaType struct {
-	Schema   Schema              `json:"schema"`             // Schema is required
-	Encoding map[string]Encoding `json:"encoding,omitempty"` // Encoding maps between a property and its encoding.
+	Schema Schema `json:"schema"` // Schema is required
+	//	Encoding map[string]Encoding `json:"encoding,omitempty"` // Encoding maps between a property and its encoding.
 }
 
 // An Encoding is applied to a specific schema property.
@@ -149,19 +164,34 @@ type Encoding struct {
 
 // Schema defines a data type or a union of data types.
 type Schema struct {
-	Type          Type           `json:"type"`
-	Minimum       int64          `json:"minimum,omitempty"`       // Minimum is inclusive
-	Maximum       int64          `json:"maximum,omitempty"`       // Maximum is inclusive
-	MaxLength     int            `json:"maxLength,omitempty"`     // MaxLength in bytes
-	MinLength     int            `json:"minLength,omitempty"`     // MinLength in bytes
-	MaxItems      int            `json:"maxItems,omitempty"`      // MaxItems of an array
-	MinItems      int            `json:"minItems,omitempty"`      // MinItems for an array
-	Nullable      bool           `json:"nullable,omitempty"`      // Nullable allows a null value
-	Pattern       string         `json:"pattern,omitempty"`       // Pattern should be a valid regex
-	Discriminator *Discriminator `json:"discriminator,omitempty"` // Discriminator allows union types
-	ReadOnly      bool           `json:"readOnly,omitempty"`      // ReadOnly declares a read only property
-	WriteOnly     bool           `json:"writeOnly,omitempty"`     // WriteOnly declares a write only property
-	Deprecated    bool           `json:"deprecated,omitempty"`    // Deprecated, if true should not be used
+	Type          Type              `json:"type,omitempty"`
+	Format        string            `json:"format,omitempty"`        // Format may contain an arbitrary hint for the format
+	Minimum       int64             `json:"minimum,omitempty"`       // Minimum is inclusive
+	Maximum       int64             `json:"maximum,omitempty"`       // Maximum is inclusive
+	MaxLength     int               `json:"maxLength,omitempty"`     // MaxLength in bytes
+	MinLength     int               `json:"minLength,omitempty"`     // MinLength in bytes
+	MaxItems      int               `json:"maxItems,omitempty"`      // MaxItems of an array
+	MinItems      int               `json:"minItems,omitempty"`      // MinItems for an array
+	Nullable      bool              `json:"nullable,omitempty"`      // Nullable allows a null value
+	Pattern       string            `json:"pattern,omitempty"`       // Pattern should be a valid regex
+	Discriminator *Discriminator    `json:"discriminator,omitempty"` // Discriminator allows union types
+	ReadOnly      bool              `json:"readOnly,omitempty"`      // ReadOnly declares a read only property
+	WriteOnly     bool              `json:"writeOnly,omitempty"`     // WriteOnly declares a write only property
+	Deprecated    bool              `json:"deprecated,omitempty"`    // Deprecated, if true should not be used
+	Properties    map[string]Schema `json:"properties,omitempty"`    // Properties is only valid for type Object
+	Ref           *string           `json:"$ref,omitempty"`          // Ref is a reference to another schema, e.g. #/components/schemas/MySchema
+	Items         *Items            `json:"items,omitempty"`
+	Description   string            `json:"description,omitempty"`
+	XType         *string           `json:"x-ee.type,omitempty"`
+}
+
+type Items struct {
+	*Schema
+}
+
+// Components defines various central specifications
+type Components struct {
+	Schemas map[string]Schema `json:"schemas,omitempty"`
 }
 
 // Type of a schema, see https://swagger.io/docs/specification/data-models/data-types/
