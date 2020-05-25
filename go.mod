@@ -1,3 +1,3 @@
-module github.com/ee4g/openapi
+module github.com/golangee/openapi
 
 go 1.14
