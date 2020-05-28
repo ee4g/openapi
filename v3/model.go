@@ -19,6 +19,7 @@ package v3
 import (
 	"encoding/json"
 	"net/url"
+	"strings"
 )
 
 type URL struct {
@@ -48,12 +49,29 @@ type Document struct {
 	Components *Components         `json:"components,omitempty"`
 }
 
-// NewDocument returns a 3.0.n document
-func NewDocument() Document {
-	return Document{Paths: map[string]PathItem{}, OpenAPI: "3.0.1"}
+// ResolveRef tries to resolve the referenced schema.
+// Currently only searching this document and definitions in components are resolvable.
+func (d *Document) ResolveRef(ref string) (string, *Schema) {
+	prefix := "#/components/schemas/"
+	if strings.HasPrefix(ref, prefix) {
+		name := ref[len(prefix):]
+		if d.Components != nil && d.Components.Schemas != nil {
+			schema, hasSchema := d.Components.Schemas[name]
+			if hasSchema {
+				return name, &schema
+			}
+			return "", nil
+		}
+	}
+	return "", nil
 }
 
-func (d Document) String() string {
+// NewDocument returns a 3.0.n document
+func NewDocument() *Document {
+	return &Document{Paths: map[string]PathItem{}, OpenAPI: "3.0.1"}
+}
+
+func (d *Document) String() string {
 	b, err := json.Marshal(d)
 	if err != nil {
 		panic(err)
@@ -101,8 +119,36 @@ type ServerVariable struct {
 
 // A PathItem describes the available operations for a specific path.
 type PathItem struct {
-	Get Operation `json:"get,omitempty"` // Get defines‚ the get Verb
+	Get    *Operation `json:"get,omitempty"`    // Get defines‚ the get Verb
+	Post   *Operation `json:"post,omitempty"`   // Get defines‚ the get Verb
+	Delete *Operation `json:"delete,omitempty"` // Get defines‚ the get Verb
+	Put    *Operation `json:"put,omitempty"`    // Get defines‚ the get Verb
+	Patch  *Operation `json:"patch,omitempty"`  // Get defines‚ the get Verb
+}
 
+func (p *PathItem) Map() map[string]*Operation {
+	r := map[string]*Operation{}
+	if p.Get != nil {
+		r["GET"] = p.Get
+	}
+
+	if p.Delete != nil {
+		r["DELETE"] = p.Delete
+	}
+
+	if p.Patch != nil {
+		r["PATCH"] = p.Patch
+	}
+
+	if p.Post != nil {
+		r["POST"] = p.Post
+	}
+
+	if p.Put != nil {
+		r["PUT"] = p.Put
+	}
+
+	return r
 }
 
 // An Operation is the http Verb specifier
@@ -225,4 +271,14 @@ const (
 type Discriminator struct {
 	PropertyName string            `json:"propertyName"`      // The required field name
 	Mapping      map[string]string `json:"mapping,omitempty"` // Mapping holds property values and schema or references
+}
+
+// FromJson tries to parse the document
+func FromJson(str []byte) (*Document, error) {
+	doc := &Document{}
+	err := json.Unmarshal(str, doc)
+	if err != nil {
+		return doc, err
+	}
+	return doc, nil
 }
